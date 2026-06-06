@@ -315,7 +315,7 @@ const MOCK_SCHEDULE = [
 ];
 
 export default function SportsDayApp() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [events, setEvents] = useState(INITIAL_EVENTS);
   const [calculatedScores, setCalculatedScores] = useState({});
