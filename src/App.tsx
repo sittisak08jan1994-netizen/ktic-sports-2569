@@ -6,7 +6,7 @@ import {
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, User } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
-
+ 
 const firebaseConfig = {
   apiKey: "AIzaSyASnnjEXJgvCvOAgpONRNELgCUcGiFmS-w",
   authDomain: "ktic-sports-2569.firebaseapp.com",
@@ -15,20 +15,20 @@ const firebaseConfig = {
   messagingSenderId: "860695337439",
   appId: "1:860695337439:web:496db5a1ba444686080c6a",
 };
-
+ 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const getDbRef = () => doc(db, "ktic_sports", "2026_events_data");
 const getScheduleRef = () => doc(db, "ktic_sports", "2026_schedule_data");
-
+ 
 const TEAMS: { [key: string]: { id: string; name: string; color: string; bgLight: string; text: string; border: string; hex: string } } = {
   red:    { id: "red",    name: "สีแดง",   color: "bg-red-500",    bgLight: "bg-red-50",    text: "text-red-700",    border: "border-red-300",    hex: "#ef4444" },
   blue:   { id: "blue",  name: "สีฟ้า",    color: "bg-blue-500",   bgLight: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-300",   hex: "#3b82f6" },
   green:  { id: "green", name: "สีเขียว", color: "bg-green-500",  bgLight: "bg-green-50",  text: "text-green-700",  border: "border-green-300",  hex: "#22c55e" },
   yellow: { id: "yellow",name: "สีเหลือง",color: "bg-yellow-400", bgLight: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-300", hex: "#eab308" },
 };
-
+ 
 interface ScoreDetail {
   teamA: string | null;
   teamB: string | null;
@@ -36,14 +36,14 @@ interface ScoreDetail {
   scoreB: string;
   note: string;
 }
-
+ 
 interface EventResult {
   gold: string | null;
   silver: string | null;
   bronze: string | null;
   detail: ScoreDetail;
 }
-
+ 
 interface SportEvent {
   id: string;
   name: string;
@@ -52,13 +52,13 @@ interface SportEvent {
   status: string;
   results: EventResult;
 }
-
+ 
 interface TeamScore {
   id: string; name: string; color: string; bgLight: string;
   text: string; border: string; hex: string;
   gold: number; silver: number; bronze: number;
 }
-
+ 
 interface ScheduleItem {
   id: string;
   date: string;
@@ -66,7 +66,7 @@ interface ScheduleItem {
   event: string;
   location: string;
 }
-
+ 
 const INITIAL_EVENTS: SportEvent[] = [
   "ฟุตบอล 7 คน|ชาย|ball","ฟุตซอล|ชาย|ball","ฟุตซอล|หญิง|ball",
   "เซปักตะกร้อ|ชาย|net","เซปักตะกร้อ|หญิง|net",
@@ -84,7 +84,7 @@ const INITIAL_EVENTS: SportEvent[] = [
     results: { gold: null, silver: null, bronze: null,
       detail: { teamA: null, teamB: null, scoreA: "", scoreB: "", note: "" } } };
 });
-
+ 
 const INITIAL_SCHEDULE: ScheduleItem[] = [
   { id: "s0", date: "6 มิ.ย. 2569", time: "08:30", event: "พิธีเปิดการแข่งขันกีฬาสี ประจำปี 2569", location: "สนามกีฬากลาง" },
   { id: "s1", date: "6 มิ.ย. 2569", time: "10:00", event: "ฟุตบอล 7 คน (รอบคัดเลือก)", location: "สนามฟุตบอล 1" },
@@ -98,24 +98,24 @@ const INITIAL_SCHEDULE: ScheduleItem[] = [
   { id: "s9", date: "10 มิ.ย. 2569", time: "13:00", event: "กรีฑา ผลัด 4x100m, 4x400m (ชิงชนะเลิศ)", location: "ลู่วิ่งสนามกลาง" },
   { id: "s10", date: "10 มิ.ย. 2569", time: "15:30", event: "พิธีปิดและมอบถ้วยรางวัลรวม", location: "สนามกีฬากลาง" },
 ];
-
+ 
 // ---- Result Display Component ----
 function ResultDisplay({ event }: { event: SportEvent }) {
   const { results } = event;
   const isTrack = event.type === "track";
-
+ 
   if (event.status !== "completed") {
     return <div className="text-center text-slate-400 text-sm py-2">ยังไม่มีผลการแข่งขัน</div>;
   }
-
+ 
   const goldTeam = results.gold ? TEAMS[results.gold] : null;
   const silverTeam = results.silver ? TEAMS[results.silver] : null;
   const bronzeTeam = results.bronze ? TEAMS[results.bronze] : null;
   const d = results.detail;
-
+ 
   // For ball/net/target: show match score if available
   const hasMatchScore = !isTrack && d.teamA && d.teamB && (d.scoreA !== "" || d.scoreB !== "");
-
+ 
   return (
     <div className="mt-3 space-y-2">
       {/* Match score card for ball/net/target sports */}
@@ -140,7 +140,7 @@ function ResultDisplay({ event }: { event: SportEvent }) {
           {d.note && <div className="text-xs text-center text-slate-500 bg-slate-50 py-1 px-2 border-t">{d.note}</div>}
         </div>
       )}
-
+ 
       {/* Medal summary */}
       <div className="flex gap-2">
         {goldTeam && (
@@ -165,7 +165,7 @@ function ResultDisplay({ event }: { event: SportEvent }) {
           </div>
         )}
       </div>
-
+ 
       {/* Track note */}
       {isTrack && d.note && (
         <div className="text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded px-2 py-1">{d.note}</div>
@@ -173,29 +173,29 @@ function ResultDisplay({ event }: { event: SportEvent }) {
     </div>
   );
 }
-
+ 
 // ---- Admin Event Editor ----
 function AdminEventEditor({ event, onSave }: { event: SportEvent; onSave: (ev: SportEvent) => void }) {
   const [draft, setDraft] = useState<SportEvent>(JSON.parse(JSON.stringify(event)));
   const isTrack = event.type === "track";
-
+ 
   const setMedal = (medal: keyof EventResult, teamId: string | null) => {
     setDraft(d => ({ ...d,
       status: "completed",
       results: { ...d.results, [medal]: d.results[medal] === teamId ? null : teamId }
     }));
   };
-
+ 
   const setDetail = (key: keyof ScoreDetail, val: string | null) => {
     setDraft(d => ({ ...d, results: { ...d.results, detail: { ...d.results.detail, [key]: val } } }));
   };
-
+ 
   const handleSave = () => {
     const r = draft.results;
     const hasAnyMedal = r.gold || r.silver || r.bronze;
     onSave({ ...draft, status: hasAnyMedal ? "completed" : "pending" });
   };
-
+ 
   return (
     <div className="mt-3 space-y-3 bg-indigo-50 border border-indigo-200 rounded-xl p-3">
       {/* Medal assignment */}
@@ -218,7 +218,7 @@ function AdminEventEditor({ event, onSave }: { event: SportEvent; onSave: (ev: S
           </div>
         );
       })}
-
+ 
       {/* Score detail for non-track */}
       {!isTrack && (
         <div className="border-t border-indigo-200 pt-3 space-y-2">
@@ -259,7 +259,7 @@ function AdminEventEditor({ event, onSave }: { event: SportEvent; onSave: (ev: S
           </div>
         </div>
       )}
-
+ 
       {/* Track note only */}
       {isTrack && (
         <div className="border-t border-indigo-200 pt-2">
@@ -268,14 +268,14 @@ function AdminEventEditor({ event, onSave }: { event: SportEvent; onSave: (ev: S
             className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 bg-white" placeholder="เช่น 11.2 วินาที" />
         </div>
       )}
-
+ 
       <button onClick={handleSave} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg transition flex items-center justify-center gap-1">
         <Check className="h-3 w-3" /> บันทึกผล
       </button>
     </div>
   );
 }
-
+ 
 export default function SportsDayApp() {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -289,13 +289,13 @@ export default function SportsDayApp() {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("all");
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
-
+ 
   // Schedule edit state
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleItem | null>(null);
   const [showAddSchedule, setShowAddSchedule] = useState(false);
   const [newSchedule, setNewSchedule] = useState<Omit<ScheduleItem, "id">>({ date: "", time: "", event: "", location: "" });
-
+ 
   useEffect(() => {
     const initAuth = async () => {
       try { await signInAnonymously(auth); }
@@ -305,7 +305,7 @@ export default function SportsDayApp() {
     const unsub = onAuthStateChanged(auth, (u) => { setUser(u); if (!u) setLoading(false); });
     return () => unsub();
   }, []);
-
+ 
   useEffect(() => {
     if (!user) return;
     const docRef = getDbRef();
@@ -316,7 +316,7 @@ export default function SportsDayApp() {
     }, (err) => { console.error(err); setLoading(false); });
     return () => unsub();
   }, [user]);
-
+ 
   useEffect(() => {
     if (!user) return;
     const ref = getScheduleRef();
@@ -326,7 +326,7 @@ export default function SportsDayApp() {
     }, console.error);
     return () => unsub();
   }, [user]);
-
+ 
   useEffect(() => {
     const newScores: { [key: string]: TeamScore } = Object.fromEntries(
       Object.entries(TEAMS).map(([k, v]) => [k, { ...v, gold: 0, silver: 0, bronze: 0 }])
@@ -338,42 +338,42 @@ export default function SportsDayApp() {
     });
     setCalculatedScores(newScores);
   }, [events]);
-
+ 
   const saveEvents = async (updated: SportEvent[]) => {
     setEvents(updated);
     try { await setDoc(getDbRef(), { eventsList: updated }, { merge: true }); }
     catch (err) { console.error(err); alert("เกิดข้อผิดพลาดในการบันทึก"); }
   };
-
+ 
   const saveSchedule = async (updated: ScheduleItem[]) => {
     setSchedule(updated);
     try { await setDoc(getScheduleRef(), { items: updated }, { merge: true }); }
     catch (err) { console.error(err); alert("เกิดข้อผิดพลาดในการบันทึกตาราง"); }
   };
-
+ 
   const handleSaveEvent = (updatedEvent: SportEvent) => {
     const updated = events.map(e => e.id === updatedEvent.id ? updatedEvent : e);
     saveEvents(updated);
     setEditingEventId(null);
   };
-
+ 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (pinCode === "2569") { setIsAdmin(true); setShowLogin(false); setPinCode(""); setLoginError(""); }
     else setLoginError("รหัสผ่านไม่ถูกต้อง");
   };
-
+ 
   const calculateTotalPoints = (team: TeamScore) => team.gold * 5 + team.silver * 3 + team.bronze * 1;
-
+ 
   const rankedTeams = Object.values(calculatedScores).sort((a, b) => {
     const diff = calculateTotalPoints(b) - calculateTotalPoints(a);
     if (diff !== 0) return diff;
     if (b.gold !== a.gold) return b.gold - a.gold;
     return b.silver - a.silver;
   });
-
+ 
   const filteredEvents = filterType === "all" ? events : events.filter(e => e.type === filterType);
-
+ 
   // Schedule handlers
   const handleAddSchedule = () => {
     if (!newSchedule.event.trim()) return;
@@ -382,24 +382,24 @@ export default function SportsDayApp() {
     setNewSchedule({ date: "", time: "", event: "", location: "" });
     setShowAddSchedule(false);
   };
-
+ 
   const handleDeleteSchedule = (id: string) => {
     if (!window.confirm("ลบรายการนี้?")) return;
     saveSchedule(schedule.filter(s => s.id !== id));
   };
-
+ 
   const handleEditSchedule = (item: ScheduleItem) => {
     setEditingScheduleId(item.id);
     setScheduleDraft({ ...item });
   };
-
+ 
   const handleSaveSchedule = () => {
     if (!scheduleDraft) return;
     saveSchedule(schedule.map(s => s.id === scheduleDraft.id ? scheduleDraft : s));
     setEditingScheduleId(null);
     setScheduleDraft(null);
   };
-
+ 
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
@@ -408,7 +408,7 @@ export default function SportsDayApp() {
       </div>
     );
   }
-
+ 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
       <header className="bg-gradient-to-r from-indigo-800 to-purple-800 text-white shadow-md sticky top-0 z-40">
@@ -438,9 +438,9 @@ export default function SportsDayApp() {
             ))}
         </div>
       </header>
-
+ 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-
+ 
         {/* ===== TAB: Overview ===== */}
         {activeTab === "overview" && (
           <div className="space-y-6">
@@ -456,7 +456,7 @@ export default function SportsDayApp() {
                 ประมวลผลจาก {events.filter(e => e.status === "completed").length} / {events.length} รายการ
               </div>
             </div>
-
+ 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex items-center">
                 <Trophy className="h-5 w-5 text-yellow-500 mr-2" />
@@ -496,7 +496,7 @@ export default function SportsDayApp() {
                 </table>
               </div>
             </div>
-
+ 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {rankedTeams.map(team => (
                 <div key={`card-${team.id}`} className={`bg-white rounded-xl shadow-sm border-t-4 ${team.border} p-4 flex flex-col items-center`}>
@@ -508,7 +508,7 @@ export default function SportsDayApp() {
             </div>
           </div>
         )}
-
+ 
         {/* ===== TAB: Events ===== */}
         {activeTab === "events" && (
           <div className="space-y-4">
@@ -521,7 +521,7 @@ export default function SportsDayApp() {
                 </div>
               </div>
             )}
-
+ 
             <div className="flex space-x-2 overflow-x-auto pb-2">
               {[{ key: "all", label: "ทั้งหมด" }, { key: "track", label: "🏃 กรีฑา" },
                 { key: "ball", label: "⚽ ฟุตบอล/ฟุตซอล" }, { key: "net", label: "🏐 วอลเลย์/ตะกร้อ" }, { key: "target", label: "🎯 เปตอง" }]
@@ -532,7 +532,7 @@ export default function SportsDayApp() {
                   </button>
                 ))}
             </div>
-
+ 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {filteredEvents.map(event => (
                 <div key={event.id} className={`bg-white rounded-xl shadow-sm border ${event.status === "completed" ? "border-green-200" : "border-slate-200"} p-5 hover:shadow-md transition`}>
@@ -553,10 +553,10 @@ export default function SportsDayApp() {
                       )}
                     </div>
                   </div>
-
+ 
                   {/* Student view: result display */}
                   {editingEventId !== event.id && <ResultDisplay event={event} />}
-
+ 
                   {/* Admin view: editor */}
                   {isAdmin && editingEventId === event.id && (
                     <AdminEventEditor event={event} onSave={handleSaveEvent} />
@@ -566,7 +566,7 @@ export default function SportsDayApp() {
             </div>
           </div>
         )}
-
+ 
         {/* ===== TAB: Schedule ===== */}
         {activeTab === "schedule" && (
           <div className="space-y-4">
@@ -579,7 +579,7 @@ export default function SportsDayApp() {
                 </button>
               </div>
             )}
-
+ 
             {/* Add schedule form */}
             {isAdmin && showAddSchedule && (
               <div className="bg-white rounded-xl border border-indigo-200 shadow-sm p-4 space-y-3">
@@ -616,7 +616,7 @@ export default function SportsDayApp() {
                 </div>
               </div>
             )}
-
+ 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="bg-indigo-50 border-b border-indigo-100 px-6 py-4">
                 <h2 className="text-lg font-bold text-indigo-900 flex items-center">
@@ -676,7 +676,7 @@ export default function SportsDayApp() {
                     )}
                   </div>
                 ))}
-
+ 
                 {schedule.length === 0 && (
                   <div className="p-8 text-center text-slate-400 text-sm">ยังไม่มีรายการแข่งขัน</div>
                 )}
@@ -685,7 +685,7 @@ export default function SportsDayApp() {
           </div>
         )}
       </main>
-
+ 
       {/* Login Modal */}
       {showLogin && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -723,3 +723,4 @@ export default function SportsDayApp() {
     </div>
   );
 }
+ 
