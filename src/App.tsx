@@ -429,10 +429,15 @@ export default function SportsDayApp() {
     if (!user) return;
     const ref = EVENTS_REF();
     return onSnapshot(ref, snap => {
-      if (snap.exists()) setEvents(snap.data().list);
-      else setDoc(ref, { list: INITIAL_EVENTS }, { merge: true });
+      const data = snap.exists() ? snap.data() : null;
+      if (data && Array.isArray(data.list)) {
+        setEvents(data.list);
+      } else {
+        setEvents(INITIAL_EVENTS);
+        setDoc(ref, { list: INITIAL_EVENTS }, { merge: true });
+      }
       setLoading(false);
-    }, e => { console.error(e); setLoading(false); });
+    }, e => { console.error(e); setEvents(INITIAL_EVENTS); setLoading(false); });
   }, [user]);
 
   // Sync matches
@@ -440,9 +445,14 @@ export default function SportsDayApp() {
     if (!user) return;
     const ref = MATCHES_REF();
     return onSnapshot(ref, snap => {
-      if (snap.exists()) setMatches(snap.data().list);
-      else setDoc(ref, { list: [] }, { merge: true });
-    }, console.error);
+      const data = snap.exists() ? snap.data() : null;
+      if (data && Array.isArray(data.list)) {
+        setMatches(data.list);
+      } else {
+        setMatches([]);
+        setDoc(ref, { list: [] }, { merge: true });
+      }
+    }, e => { console.error(e); setMatches([]); });
   }, [user]);
 
   const saveEvents = async (list: SportEvent[]) => {
