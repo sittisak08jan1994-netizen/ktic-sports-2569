@@ -304,7 +304,7 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial }: {
         <label className="text-xs font-semibold text-slate-600 mb-1 block">หมายเหตุ (ไม่บังคับ)</label>
         <input value={form.note} onChange={e => set("note", e.target.value)}
           className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50"
-          placeholder="เช่น ต่อเวลาพิเศษ, ดวลจุดโทษ 4-3" />
+          placeholder="เช่น ต่อเวลาพิเศษ, ดวลจุดโทษ 4-3 หรือ อื่นๆ" />
       </div>
 
       {/* Medal round toggle */}
@@ -536,7 +536,7 @@ function ScheduleForm({ initial, onSave, onCancel }: {
       <div>
         <label className="text-xs font-semibold text-slate-600 mb-1 block">สถานที่</label>
         <input value={form.location} onChange={e => set("location", e.target.value)}
-          className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50" placeholder="เช่น โรงยิมเนเซียม" />
+          className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50" placeholder="เช่น โดมอเนกประสงค์" />
       </div>
       <div className="flex gap-2">
         <button onClick={() => valid && onSave(form)} disabled={!valid}
