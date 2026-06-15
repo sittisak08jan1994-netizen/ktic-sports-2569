@@ -254,6 +254,8 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial, otherMatches }
   const set = (k: keyof MatchResult, v: unknown) => setForm(f => ({ ...f, [k]: v }));
 
   // ── คำนวณเหรียญ/สี ที่ถูกใช้ไปแล้วจากนัดอื่นในรายการเดียวกัน ──
+  // (otherMatches already excludes this match itself, so anything in usedMedals/usedTeams
+  //  is genuinely used by a DIFFERENT match — no "exceptCurrent" needed)
   const usedMedals = new Set<MedalType>();
   const usedTeams = new Set<string>();
   otherMatches.forEach(m => {
@@ -262,23 +264,17 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial, otherMatches }
     if (m.medalB) { usedMedals.add(m.medalB); if (m.teamB) usedTeams.add(m.teamB); }
   });
 
-  // helper: ทีมนี้ถูกใช้ไปแล้วหรือยัง (ยกเว้นทีมที่เลือกอยู่ในฟอร์มนี้เอง)
-  const isTeamLocked = (teamId: string, exceptCurrent?: string) =>
-    usedTeams.has(teamId) && teamId !== exceptCurrent;
-
-  // helper: เหรียญนี้ถูกใช้ไปแล้วหรือยัง (ยกเว้นเหรียญที่ฟอร์มนี้เลือกอยู่)
-  const isMedalLocked = (medal: MedalType, exceptCurrent?: MedalType) =>
-    medal !== "" && usedMedals.has(medal) && medal !== exceptCurrent;
+  const isTeamLocked = (teamId: string) => usedTeams.has(teamId);
+  const isMedalLocked = (medal: MedalType) => medal !== "" && usedMedals.has(medal);
 
   const valid = !!form.teamA && (isTrack || !!form.teamB);
 
-  // A value is a real conflict only if it's locked by a DIFFERENT match
-  // (isTeamLocked/isMedalLocked already exclude the form's own current value via exceptCurrent).
+  // A value is a real conflict if it's locked by a DIFFERENT match
   const conflict =
-    (!!form.teamA && isTeamLocked(form.teamA, form.teamA)) ||
-    (!isTrack && !!form.teamB && isTeamLocked(form.teamB, form.teamB)) ||
-    (form.isMedalRound && !!form.medalA && isMedalLocked(form.medalA, form.medalA)) ||
-    (form.isMedalRound && !isTrack && !!form.medalB && isMedalLocked(form.medalB, form.medalB)) ||
+    (!!form.teamA && isTeamLocked(form.teamA)) ||
+    (!isTrack && !!form.teamB && isTeamLocked(form.teamB)) ||
+    (form.isMedalRound && !!form.medalA && isMedalLocked(form.medalA)) ||
+    (form.isMedalRound && !isTrack && !!form.medalB && isMedalLocked(form.medalB)) ||
     (form.isMedalRound && !isTrack && !!form.medalA && form.medalA === form.medalB);
 
   const canSave = valid && !conflict;
@@ -299,7 +295,7 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial, otherMatches }
             className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50">
             <option value="">-- เลือกสี --</option>
             {Object.values(TEAMS).map(t => {
-              const locked = isTeamLocked(t.id, form.teamA);
+              const locked = isTeamLocked(t.id);
               return (
                 <option key={t.id} value={t.id} disabled={locked}>
                   {t.name}{locked ? " (ได้เหรียญไปแล้ว)" : ""}
@@ -315,7 +311,7 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial, otherMatches }
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50">
               <option value="">-- เลือกสี --</option>
               {Object.values(TEAMS).filter(t => t.id !== form.teamA).map(t => {
-                const locked = isTeamLocked(t.id, form.teamB);
+                const locked = isTeamLocked(t.id);
                 return (
                   <option key={t.id} value={t.id} disabled={locked}>
                     {t.name}{locked ? " (ได้เหรียญไปแล้ว)" : ""}
@@ -366,7 +362,7 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial, otherMatches }
             </label>
             <div className="flex gap-1.5 flex-wrap">
               {MEDAL_OPTIONS.map(opt => {
-                const locked = isMedalLocked(opt.v, form.medalA);
+                const locked = isMedalLocked(opt.v);
                 return (
                   <button key={opt.v} type="button" disabled={locked}
                     onClick={() => !locked && set("medalA", opt.v)}
@@ -387,7 +383,7 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial, otherMatches }
               <label className="text-xs font-semibold text-slate-600 mb-1 block">เหรียญที่ ทีม B ได้รับ</label>
               <div className="flex gap-1.5 flex-wrap">
                 {MEDAL_OPTIONS.map(opt => {
-                  const locked = isMedalLocked(opt.v, form.medalB) || (opt.v !== "" && opt.v === form.medalA);
+                  const locked = isMedalLocked(opt.v) || (opt.v !== "" && opt.v === form.medalA);
                   return (
                     <button key={opt.v} type="button" disabled={locked}
                       onClick={() => !locked && set("medalB", opt.v)}
