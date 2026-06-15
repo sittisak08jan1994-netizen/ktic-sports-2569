@@ -96,15 +96,15 @@ const INITIAL_EVENTS: SportEvent[] = [
 const INITIAL_MATCHES: MatchResult[] = [];
 
 const INITIAL_SCHEDULE: ScheduleItem[] = [
-  { id:"s0",  date:"6 มิ.ย. 2569",  time:"08:30", event:"พิธีเปิดการแข่งขันกีฬาสี ประจำปี 2569",        location:"สนาม" },
+  { id:"s0",  date:"6 มิ.ย. 2569",  time:"08:30", event:"พิธีเปิดการแข่งขันกีฬาสี ประจำปี 2569",        location:"สนามกีฬากลาง" },
   { id:"s1",  date:"6 มิ.ย. 2569",  time:"10:00", event:"ฟุตบอล 7 คน (รอบคัดเลือก)",                   location:"สนามฟุตบอล 1" },
-  { id:"s2",  date:"6 มิ.ย. 2569",  time:"13:00", event:"เซปักตะกร้อ ชาย/หญิง (รอบคัดเลือก)",          location:"โดมอเนกประสงค์" },
-  { id:"s3",  date:"7 มิ.ย. 2569",  time:"09:00", event:"วอลเลย์บอล ชาย/หญิง (รอบแรก)",                location:"โดมอเนกประสงค์" },
+  { id:"s2",  date:"6 มิ.ย. 2569",  time:"13:00", event:"เซปักตะกร้อ ชาย/หญิง (รอบคัดเลือก)",          location:"ลานกีฬาอเนกประสงค์" },
+  { id:"s3",  date:"7 มิ.ย. 2569",  time:"09:00", event:"วอลเลย์บอล ชาย/หญิง (รอบแรก)",                location:"โรงยิมเนเซียม" },
   { id:"s4",  date:"7 มิ.ย. 2569",  time:"13:30", event:"เปตอง ชาย/หญิง (รอบแรก-ชิงชนะเลิศ)",          location:"สนามเปตอง" },
-  { id:"s5",  date:"8 มิ.ย. 2569",  time:"09:00", event:"ฟุตซอล ชาย/หญิง (รอบคัดเลือก)",               location:"โดมอเนกประสงค์" },
+  { id:"s5",  date:"8 มิ.ย. 2569",  time:"09:00", event:"ฟุตซอล ชาย/หญิง (รอบคัดเลือก)",               location:"โรงยิมเนเซียม" },
   { id:"s6",  date:"9 มิ.ย. 2569",  time:"09:00", event:"กรีฑา 100m, 200m (รอบคัดเลือก)",              location:"ลู่วิ่งสนามกลาง" },
   { id:"s7",  date:"9 มิ.ย. 2569",  time:"13:00", event:"กรีฑา 400m, 800m (ชิงชนะเลิศ)",               location:"ลู่วิ่งสนามกลาง" },
-  { id:"s8",  date:"10 มิ.ย. 2569", time:"09:00", event:"ฟุตบอล / ฟุตซอล (ชิงชนะเลิศ)",                location:"สนามฟุตบอล/โดมอเนกประสงค์" },
+  { id:"s8",  date:"10 มิ.ย. 2569", time:"09:00", event:"ฟุตบอล / ฟุตซอล (ชิงชนะเลิศ)",                location:"สนามฟุตบอล/โรงยิม" },
   { id:"s9",  date:"10 มิ.ย. 2569", time:"13:00", event:"กรีฑา ผลัด 4x100m, 4x400m (ชิงชนะเลิศ)",      location:"ลู่วิ่งสนามกลาง" },
   { id:"s10", date:"10 มิ.ย. 2569", time:"15:30", event:"พิธีปิดและมอบถ้วยรางวัลรวม",                  location:"สนามกีฬากลาง" },
 ];
@@ -241,10 +241,11 @@ function MatchHighlight({ match }: { match: MatchResult }) {
 }
 
 // ── Match Form (admin) ────────────────────────────────────────────────────────
-function MatchForm({ eventId, isTrack, onSave, onCancel, initial }: {
+function MatchForm({ eventId, isTrack, onSave, onCancel, initial, otherMatches }: {
   eventId: string; isTrack: boolean;
   onSave: (m: MatchResult) => void; onCancel: () => void;
   initial?: MatchResult;
+  otherMatches: MatchResult[];
 }) {
   const [form, setForm] = useState<MatchResult>(initial ?? {
     id: uid(), eventId, round: "", isMedalRound: false,
@@ -252,7 +253,35 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial }: {
   });
   const set = (k: keyof MatchResult, v: unknown) => setForm(f => ({ ...f, [k]: v }));
 
-  const valid = form.teamA && (isTrack || form.teamB);
+  // ── คำนวณเหรียญ/สี ที่ถูกใช้ไปแล้วจากนัดอื่นในรายการเดียวกัน ──
+  const usedMedals = new Set<MedalType>();
+  const usedTeams = new Set<string>();
+  otherMatches.forEach(m => {
+    if (!m.isMedalRound) return;
+    if (m.medalA) { usedMedals.add(m.medalA); if (m.teamA) usedTeams.add(m.teamA); }
+    if (m.medalB) { usedMedals.add(m.medalB); if (m.teamB) usedTeams.add(m.teamB); }
+  });
+
+  // helper: ทีมนี้ถูกใช้ไปแล้วหรือยัง (ยกเว้นทีมที่เลือกอยู่ในฟอร์มนี้เอง)
+  const isTeamLocked = (teamId: string, exceptCurrent?: string) =>
+    usedTeams.has(teamId) && teamId !== exceptCurrent;
+
+  // helper: เหรียญนี้ถูกใช้ไปแล้วหรือยัง (ยกเว้นเหรียญที่ฟอร์มนี้เลือกอยู่)
+  const isMedalLocked = (medal: MedalType, exceptCurrent?: MedalType) =>
+    medal !== "" && usedMedals.has(medal) && medal !== exceptCurrent;
+
+  const valid = !!form.teamA && (isTrack || !!form.teamB);
+
+  // A value is a real conflict only if it's locked by a DIFFERENT match
+  // (isTeamLocked/isMedalLocked already exclude the form's own current value via exceptCurrent).
+  const conflict =
+    (!!form.teamA && isTeamLocked(form.teamA, form.teamA)) ||
+    (!isTrack && !!form.teamB && isTeamLocked(form.teamB, form.teamB)) ||
+    (form.isMedalRound && !!form.medalA && isMedalLocked(form.medalA, form.medalA)) ||
+    (form.isMedalRound && !isTrack && !!form.medalB && isMedalLocked(form.medalB, form.medalB)) ||
+    (form.isMedalRound && !isTrack && !!form.medalA && form.medalA === form.medalB);
+
+  const canSave = valid && !conflict;
 
   return (
     <div className="bg-white border border-indigo-200 rounded-xl p-4 space-y-3 shadow-sm">
@@ -269,7 +298,14 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial }: {
           <select value={form.teamA} onChange={e => set("teamA", e.target.value)}
             className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50">
             <option value="">-- เลือกสี --</option>
-            {Object.values(TEAMS).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            {Object.values(TEAMS).map(t => {
+              const locked = isTeamLocked(t.id, form.teamA);
+              return (
+                <option key={t.id} value={t.id} disabled={locked}>
+                  {t.name}{locked ? " (ได้เหรียญไปแล้ว)" : ""}
+                </option>
+              );
+            })}
           </select>
         </div>
         {!isTrack && (
@@ -278,7 +314,14 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial }: {
             <select value={form.teamB} onChange={e => set("teamB", e.target.value)}
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50">
               <option value="">-- เลือกสี --</option>
-              {Object.values(TEAMS).filter(t => t.id !== form.teamA).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {Object.values(TEAMS).filter(t => t.id !== form.teamA).map(t => {
+                const locked = isTeamLocked(t.id, form.teamB);
+                return (
+                  <option key={t.id} value={t.id} disabled={locked}>
+                    {t.name}{locked ? " (ได้เหรียญไปแล้ว)" : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
         )}
@@ -304,7 +347,7 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial }: {
         <label className="text-xs font-semibold text-slate-600 mb-1 block">หมายเหตุ (ไม่บังคับ)</label>
         <input value={form.note} onChange={e => set("note", e.target.value)}
           className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50"
-          placeholder="เช่น ต่อเวลาพิเศษ, ดวลจุดโทษ 4-3 หรือ อื่นๆ" />
+          placeholder="เช่น ต่อเวลาพิเศษ, ดวลจุดโทษ 4-3" />
       </div>
 
       {/* Medal round toggle */}
@@ -322,36 +365,66 @@ function MatchForm({ eventId, isTrack, onSave, onCancel, initial }: {
               เหรียญที่ {isTrack ? "สีนี้" : "ทีม A"} ได้รับ
             </label>
             <div className="flex gap-1.5 flex-wrap">
-              {MEDAL_OPTIONS.map(opt => (
-                <button key={opt.v} type="button" onClick={() => set("medalA", opt.v)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition ${form.medalA === opt.v ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"}`}>
-                  {opt.label}
-                </button>
-              ))}
+              {MEDAL_OPTIONS.map(opt => {
+                const locked = isMedalLocked(opt.v, form.medalA);
+                return (
+                  <button key={opt.v} type="button" disabled={locked}
+                    onClick={() => !locked && set("medalA", opt.v)}
+                    title={locked ? "เหรียญนี้ถูกใช้ไปแล้วในรอบอื่น" : ""}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition ${
+                      form.medalA === opt.v ? "bg-indigo-600 text-white border-indigo-600"
+                      : locked ? "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed line-through"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                    }`}>
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
           {!isTrack && (
             <div>
               <label className="text-xs font-semibold text-slate-600 mb-1 block">เหรียญที่ ทีม B ได้รับ</label>
               <div className="flex gap-1.5 flex-wrap">
-                {MEDAL_OPTIONS.map(opt => (
-                  <button key={opt.v} type="button" onClick={() => set("medalB", opt.v)}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition ${form.medalB === opt.v ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"}`}>
-                    {opt.label}
-                  </button>
-                ))}
+                {MEDAL_OPTIONS.map(opt => {
+                  const locked = isMedalLocked(opt.v, form.medalB) || (opt.v !== "" && opt.v === form.medalA);
+                  return (
+                    <button key={opt.v} type="button" disabled={locked}
+                      onClick={() => !locked && set("medalB", opt.v)}
+                      title={locked ? "เหรียญนี้ถูกใช้ไปแล้ว" : ""}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition ${
+                        form.medalB === opt.v ? "bg-indigo-600 text-white border-indigo-600"
+                        : locked ? "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed line-through"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                      }`}>
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
           <p className="text-xs text-slate-500 col-span-full">
             💡 ตัวอย่าง: รอบชิงชนะเลิศ สีแดงชนะ สีฟ้า → เลือก ทีม A = 🥇ทอง, ทีม B = 🥈เงิน
           </p>
+          {(usedMedals.size > 0) && (
+            <p className="text-xs text-amber-600 col-span-full bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
+              ⚠️ เหรียญที่ถูกใช้ไปแล้วในรายการนี้: {Array.from(usedMedals).map(m => MEDAL_ICON[m]).join(" ")}
+              {usedTeams.size > 0 && <> | สีที่ได้เหรียญแล้ว: {Array.from(usedTeams).map(t => TEAMS[t]?.name).join(", ")}</>}
+            </p>
+          )}
         </div>
       )}
 
+      {conflict && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+          ⚠️ มีการเลือกสีหรือเหรียญที่ถูกใช้ไปแล้วในรายการนี้ กรุณาเลือกใหม่
+        </p>
+      )}
+
       <div className="flex gap-2 pt-1">
-        <button onClick={() => valid && onSave(form)} disabled={!valid}
-          className={`flex-1 text-sm font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1 ${valid ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}>
+        <button onClick={() => canSave && onSave(form)} disabled={!canSave}
+          className={`flex-1 text-sm font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1 ${canSave ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}>
           <Check className="h-4 w-4" /> บันทึกผล
         </button>
         <button onClick={onCancel}
@@ -473,6 +546,7 @@ function AdminEventCard({ event, matches, onAddMatch, onDeleteMatch, onEditMatch
             {editingMatch?.id === m.id ? (
               <MatchForm eventId={event.id} isTrack={isTrack}
                 initial={editingMatch}
+                otherMatches={matches.filter(x => x.id !== m.id)}
                 onSave={(updated) => { onEditMatch(updated); setEditingMatch(null); }}
                 onCancel={() => setEditingMatch(null)} />
             ) : (
@@ -491,6 +565,7 @@ function AdminEventCard({ event, matches, onAddMatch, onDeleteMatch, onEditMatch
 
         {showForm && !editingMatch && (
           <MatchForm eventId={event.id} isTrack={isTrack}
+            otherMatches={matches}
             onSave={(m) => { onAddMatch(m); setShowForm(false); }}
             onCancel={() => setShowForm(false)} />
         )}
@@ -536,7 +611,7 @@ function ScheduleForm({ initial, onSave, onCancel }: {
       <div>
         <label className="text-xs font-semibold text-slate-600 mb-1 block">สถานที่</label>
         <input value={form.location} onChange={e => set("location", e.target.value)}
-          className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50" placeholder="เช่น โดมอเนกประสงค์" />
+          className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50" placeholder="เช่น โรงยิมเนเซียม" />
       </div>
       <div className="flex gap-2">
         <button onClick={() => valid && onSave(form)} disabled={!valid}
