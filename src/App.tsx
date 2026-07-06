@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, User } from "firebase/auth";
-import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
+import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyASnnjEXJgvCvOAgpONRNELgCUcGiFmS-w",
@@ -650,21 +650,50 @@ export default function SportsDayApp() {
   // Sync events
   useEffect(() => {
     if (!user) return;
+
     const ref = EVENTS_REF();
+
     return onSnapshot(ref, snap => {
-      const data = snap.exists() ? snap.data() : null;
-      if (data && Array.isArray(data.list)) setEvents(data.list);
-      else { setEvents(INITIAL_EVENTS); setDoc(ref, { list: INITIAL_EVENTS }, { merge: true }); }
+      if (!snap.exists()) {
+        // แสดงค่าเริ่มต้นเฉย ๆ แต่ไม่เขียนทับ Firestore อัตโนมัติ
+        setEvents(INITIAL_EVENTS);
+        setLoading(false);
+        return;
+      }
+
+      const data = snap.data();
+
+      if (data && Array.isArray(data.list)) {
+        setEvents(data.list);
+      } else {
+        setEvents(INITIAL_EVENTS);
+      }
+
       setLoading(false);
-    }, e => { console.error(e); setEvents(INITIAL_EVENTS); setLoading(false); });
+    }, e => {
+      console.error(e);
+      alert("โหลดรายการกีฬาจากฐานข้อมูลไม่สำเร็จ");
+      setEvents(INITIAL_EVENTS);
+      setLoading(false);
+    });
   }, [user]);
 
   // Sync matches
   useEffect(() => {
     if (!user) return;
+
     const ref = MATCHES_REF();
+
     return onSnapshot(ref, snap => {
-      const data = snap.exists() ? snap.data() : null;
+      if (!snap.exists()) {
+        // ไม่มีเอกสาร = ยังไม่มีผลการแข่งขัน
+        // สำคัญ: ห้าม setDoc({ list: [] }) อัตโนมัติ เพราะอาจล้างผลเดิมได้
+        setMatches([]);
+        return;
+      }
+
+      const data = snap.data();
+
       if (data && Array.isArray(data.list)) {
         // normalize old data shape (medal -> medalA) if present
         const normalized: MatchResult[] = data.list.map((m: any) => ({
@@ -680,41 +709,78 @@ export default function SportsDayApp() {
           medalA: m.medalA ?? m.medal ?? "",
           medalB: m.medalB ?? "",
         }));
+
         setMatches(normalized);
       } else {
         setMatches([]);
-        setDoc(ref, { list: [] }, { merge: true });
       }
-    }, e => { console.error(e); setMatches([]); });
+    }, e => {
+      console.error(e);
+      alert("โหลดผลการแข่งขันจากฐานข้อมูลไม่สำเร็จ");
+    });
   }, [user]);
 
   // Sync schedule
   useEffect(() => {
     if (!user) return;
+
     const ref = SCHEDULE_REF();
+
     return onSnapshot(ref, snap => {
-      const data = snap.exists() ? snap.data() : null;
-      if (data && Array.isArray(data.list)) setSchedule(data.list);
-      else { setSchedule(INITIAL_SCHEDULE); setDoc(ref, { list: INITIAL_SCHEDULE }, { merge: true }); }
-    }, e => { console.error(e); setSchedule(INITIAL_SCHEDULE); });
+      if (!snap.exists()) {
+        // แสดงค่าเริ่มต้นเฉย ๆ แต่ไม่เขียนทับ Firestore อัตโนมัติ
+        setSchedule(INITIAL_SCHEDULE);
+        return;
+      }
+
+      const data = snap.data();
+
+      if (data && Array.isArray(data.list)) {
+        setSchedule(data.list);
+      } else {
+        setSchedule(INITIAL_SCHEDULE);
+      }
+    }, e => {
+      console.error(e);
+      alert("โหลดตารางแข่งขันจากฐานข้อมูลไม่สำเร็จ");
+      setSchedule(INITIAL_SCHEDULE);
+    });
   }, [user]);
 
   const saveEvents = async (list: SportEvent[]) => {
-    setEvents(list);
-    try { await setDoc(EVENTS_REF(), { list }, { merge: true }); }
-    catch(e) { console.error(e); alert("บันทึกไม่สำเร็จ"); }
+    try {
+      await setDoc(EVENTS_REF(), {
+        list,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch(e) {
+      console.error(e);
+      alert("บันทึกรายการกีฬาไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือ Firestore Rules");
+    }
   };
 
   const saveMatches = async (list: MatchResult[]) => {
-    setMatches(list);
-    try { await setDoc(MATCHES_REF(), { list }, { merge: true }); }
-    catch(e) { console.error(e); alert("บันทึกไม่สำเร็จ"); }
+    try {
+      await setDoc(MATCHES_REF(), {
+        list,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch(e) {
+      console.error(e);
+      alert("บันทึกผลการแข่งขันไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือ Firestore Rules");
+    }
   };
 
   const saveSchedule = async (list: ScheduleItem[]) => {
-    setSchedule(list);
-    try { await setDoc(SCHEDULE_REF(), { list }, { merge: true }); }
-    catch(e) { console.error(e); alert("บันทึกตารางไม่สำเร็จ"); }
+    try {
+      await setDoc(SCHEDULE_REF(), {
+        list,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch(e) {
+      console.error(e);
+      alert("บันทึกตารางไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือ Firestore Rules");
+    }
   };
 
   // Compute scores: count medals from both teamA and teamB sides
